@@ -14,13 +14,13 @@
 
 <main>
 
-  <!-- Step 1: Inputs -->
+  <!-- ── 1. Inputs ────────────────────────────────────────── -->
   <section class="card">
     <h2>Introduction</h2>
     <textarea id="intro-input" placeholder="Paste or write your Introduction…"></textarea>
 
     <h2>Previous Works</h2>
-    <textarea id="prevworks-input" placeholder="Summarize related research…"></textarea>
+    <textarea id="prevworks-input" placeholder="Summarize related studies…"></textarea>
 
     <h2>Methods</h2>
     <textarea id="methods-input" placeholder="Describe your Methods…"></textarea>
@@ -28,7 +28,7 @@
     <button id="generate-q-btn" class="primary">Generate Questionnaire</button>
   </section>
 
-  <!-- Step 2: Generated Questionnaire -->
+  <!-- ── 2. Generated Questionnaire ───────────────────────── -->
   <section class="card">
     <h2>Profile Questions</h2>
     <ul id="profile-list"></ul>
@@ -45,18 +45,19 @@
     </div>
   </section>
 
-  <!-- Step 3: Discussion -->
+  <!-- ── 3. Discussion (ChatGPT) ──────────────────────────── -->
   <section class="card">
     <h2>Discussion & Comments</h2>
-    <textarea id="discussion-log" readonly></textarea>
+    <textarea id="discussion-log" readonly rows="12"></textarea>
 
-    <textarea id="comment-input" rows="3" placeholder="Add a comment or suggestion…"></textarea>
+    <textarea id="comment-input" rows="3"
+              placeholder="Ask a question or suggest a change…"></textarea>
     <div class="btn-row">
       <button id="add-comment-btn">Add Comment</button>
     </div>
   </section>
 
-  <!-- Export -->
+  <!-- ── 4. Export Buttons ────────────────────────────────── -->
   <section class="card export">
     <button id="copy-json-btn">Copy JSON</button>
     <button id="copy-script-btn">Copy Google Forms Script</button>
@@ -67,4 +68,3 @@
 <script src="js/app.js"></script>
 </body>
 </html>
-

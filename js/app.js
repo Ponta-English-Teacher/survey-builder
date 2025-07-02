@@ -1,13 +1,13 @@
 // =============================
-//  Survey Builder – FULL app.js  (with Discussion & Regeneration)
-//  Updated: 2025‑06‑30
+//  Survey Builder – FULL app.js  (Discussion area now GPT chat)
+//  Updated: 2025‑07‑02
 //  ────────────────────────────────────────────────────────────
-//  • Three source textareas: Introduction, Previous Works, Methods
-//  • Generate Questionnaire (PROFILE / YESNO / LIKERT)
-//  • Discussion log collects every draft and user comments
-//  • Regenerate button feeds GPT => Intro + PrevWorks + Methods + Discussion
-//  • One‑click JSON & Google‑Forms export
-//  • Works offline except POST → /api/openai proxy
+//  • Generates questionnaire (PROFILE / YESNO / LIKERT)
+//  • Discussion panel is now a live ChatGPT thread – students can talk to the
+//    assistant about the draft.  Each user message triggers a GPT response
+//    that is appended to the log.
+//  • Regeneration still feeds Intro + PrevWorks + Methods + ENTIRE discussion
+//    to create a fresh draft.
 // =============================
 
 /*****   GLOBAL APP STATE   *****/
@@ -15,32 +15,23 @@ const researchState = {
   intro: "",
   previous: "",
   methods: "",
-  draftCount: 0,                        // # of drafts generated so far
-  questionnaire: {                      // current visible draft
-    profile: [],                        // [string]
-    yesno: [],                          // [string]
-    likert: []                          // [{text, polarity}]
-  }
+  draftCount: 0,
+  questionnaire: { profile: [], yesno: [], likert: [] }
 };
 
 /*****   DOM REFERENCES   *****/
-// source inputs
 const introInput     = document.getElementById("intro-input");
 const prevInput      = document.getElementById("prevworks-input");
 const methodsInput   = document.getElementById("methods-input");
-// main buttons
 const genBtn         = document.getElementById("generate-q-btn");
 const sendDraftBtn   = document.getElementById("send-draft-btn");
 const regenBtn       = document.getElementById("regen-q-btn");
-// questionnaire containers
 const profileList    = document.getElementById("profile-list");
 const yesnoList      = document.getElementById("yesno-list");
 const constructsBox  = document.getElementById("constructs-list");
-// discussion area
 const discussionBox  = document.getElementById("discussion-log");
 const commentInput   = document.getElementById("comment-input");
 const addCommentBtn  = document.getElementById("add-comment-btn");
-// export
 const copyJsonBtn    = document.getElementById("copy-json-btn");
 const copyScriptBtn  = document.getElementById("copy-script-btn");
 
@@ -66,7 +57,7 @@ genBtn.addEventListener("click", async () => {
   if (!sourcesFilled()) return;
   genBtn.disabled = true; genBtn.textContent = "Generating…";
   try {
-    await generateQuestionnaire(discussionBox.value); // no discussion for first draft
+    await generateQuestionnaire("");
   } catch (err) { alert(err.message); }
   genBtn.disabled = false; genBtn.textContent = "Generate Questionnaire";
 });
@@ -77,18 +68,35 @@ sendDraftBtn.addEventListener("click", () => {
   pushCurrentDraftToDiscussion();
 });
 
-/*****   ADD USER COMMENT   *****/
-addCommentBtn.addEventListener("click", () => {
-  const txt = commentInput.value.trim();
-  if (!txt) return;
-  discussionBox.value += `\n>> Comment: ${txt}`;
+/*****   GPT CHAT IN DISCUSSION AREA   *****/
+addCommentBtn.addEventListener("click", async () => {
+  const userMsg = commentInput.value.trim();
+  if (!userMsg) return;
+  // append user message
+  discussionBox.value += `\n\nYou: ${userMsg}`;
   commentInput.value = "";
+
+  try {
+    const assistantReply = await callGPT([
+      { role: "system", content: `You are ChatGPT helping students refine a questionnaire for their undergraduate thesis. Use the provided draft items as context and give clear, concise feedback or suggestions.` },
+      { role: "user", content: buildPromptForChat(userMsg) }
+    ], 0.7);
+
+    discussionBox.value += `\nAI: ${assistantReply}`;
+    // auto‑scroll to bottom
+    discussionBox.scrollTop = discussionBox.scrollHeight;
+  } catch (err) {
+    alert("Chat error: " + err.message);
+  }
 });
+
+function buildPromptForChat(latestUserMsg) {
+  return `Current draft items:\n${plainQuestions()}\n\nPrevious discussion:\n${discussionBox.value}\n\nUser: ${latestUserMsg}`;
+}
 
 /*****   REGENERATE USING DISCUSSION   *****/
 regenBtn.addEventListener("click", async () => {
   if (!sourcesFilled()) return;
-  // ensure current draft is logged
   if (hasDraft()) pushCurrentDraftToDiscussion();
   regenBtn.disabled = true; regenBtn.textContent = "Regenerating…";
   try {
@@ -99,7 +107,7 @@ regenBtn.addEventListener("click", async () => {
 
 /*****   GENERATE / REGENERATE FUNCTION   *****/
 async function generateQuestionnaire(extraContext) {
-  const systemPrompt = `You are an educational survey designer. Based on the INTRODUCTION, PREVIOUS WORKS, METHODS, and DISCUSSION below, draft 10–15 questionnaire items.\nLabel each line with PROFILE:, YESNO:, or LIKERT: (balanced polarity). No extra commentary.`;
+  const systemPrompt = `You are an educational survey designer. Using the INTRODUCTION, PREVIOUS WORKS, METHODS, and DISCUSSION below, draft 10–15 questionnaire items. Label each line with PROFILE:, YESNO:, or LIKERT:.`;
   const userPrompt = `INTRODUCTION:\n${researchState.intro}\n\nPREVIOUS WORKS:\n${researchState.previous}\n\nMETHODS:\n${researchState.methods}\n\nDISCUSSION:\n${extraContext || "(none)"}`;
 
   const raw = await callGPT([
@@ -107,7 +115,6 @@ async function generateQuestionnaire(extraContext) {
     { role: "user",   content: userPrompt   }
   ]);
 
-  // reset current draft
   researchState.questionnaire = { profile: [], yesno: [], likert: [] };
   raw.split(/\n+/).forEach((line, i) => {
     line = line.replace(/^[-*]\s*/, "").trim();
@@ -128,27 +135,24 @@ async function generateQuestionnaire(extraContext) {
 
 /*****   RENDER FUNCTIONS   *****/
 function renderQuestionnaire() {
-  // Profile
   profileList.innerHTML = "";
-  researchState.questionnaire.profile.forEach((item, idx) => {
-    const li = document.createElement("li"); li.textContent = item;
-    profileList.appendChild(li);
+  researchState.questionnaire.profile.forEach(txt => {
+    const li = document.createElement("li"); li.textContent = txt; profileList.appendChild(li);
   });
-  // Yes/No
+
   yesnoList.innerHTML = "";
-  researchState.questionnaire.yesno.forEach((item, idx) => {
-    const li = document.createElement("li"); li.textContent = item;
-    yesnoList.appendChild(li);
+  researchState.questionnaire.yesno.forEach(txt => {
+    const li = document.createElement("li"); li.textContent = txt; yesnoList.appendChild(li);
   });
-  // Likert
+
   constructsBox.innerHTML = "";
-  researchState.questionnaire.likert.forEach((obj, idx) => {
+  researchState.questionnaire.likert.forEach(obj => {
     const row = document.createElement("div"); row.className = "item-row";
-    const polBtn = document.createElement("button"); polBtn.textContent = obj.polarity===1?"👍":"👎";
-    polBtn.onclick = () => { obj.polarity *= -1; renderQuestionnaire(); };
-    const inp = document.createElement("input"); inp.value = obj.text;
-    inp.onchange = () => { obj.text = inp.value; };
-    row.append(polBtn, inp);
+    const pol = document.createElement("button"); pol.textContent = obj.polarity===1?"👍":"👎";
+    pol.onclick = () => { obj.polarity*=-1; renderQuestionnaire(); };
+    const input = document.createElement("input"); input.value = obj.text;
+    input.onchange = () => { obj.text = input.value; };
+    row.append(pol, input);
     constructsBox.appendChild(row);
   });
 }
@@ -157,11 +161,12 @@ function renderQuestionnaire() {
 function pushCurrentDraftToDiscussion() {
   if (!hasDraft()) return;
   const d = researchState.questionnaire;
-  let block = `\n\n— Draft #${researchState.draftCount} —\nPROFILE: ${d.profile.join(" | ")}\nYESNO: ${d.yesno.join(" | ")}\nLIKERT: ${d.likert.map(o=>o.text).join(" | ")}`;
+  const block = `\n\n— Draft #${researchState.draftCount} —\nPROFILE: ${d.profile.join(" | ")}\nYESNO: ${d.yesno.join(" | ")}\nLIKERT: ${d.likert.map(o=>o.text).join(" | ")}`;
   discussionBox.value += block;
 }
 function hasDraft() {
-  return researchState.questionnaire.profile.length || researchState.questionnaire.yesno.length || researchState.questionnaire.likert.length;
+  const q = researchState.questionnaire;
+  return q.profile.length || q.yesno.length || q.likert.length;
 }
 function sourcesFilled() {
   if (!researchState.intro || !researchState.previous || !researchState.methods) {
@@ -170,6 +175,14 @@ function sourcesFilled() {
   }
   return true;
 }
+function plainQuestions() {
+  const q = researchState.questionnaire;
+  return [
+    ...q.profile.map(p => `PROFILE: ${p}`),
+    ...q.yesno.map(y => `YESNO: ${y}`),
+    ...q.likert.map(l => `LIKERT: ${l.text}`)
+  ].join("\n");
+}
 
 /*****   EXPORT BUTTONS   *****/
 copyJsonBtn.addEventListener("click", () => {
@@ -177,20 +190,4 @@ copyJsonBtn.addEventListener("click", () => {
   alert("Questionnaire JSON copied ✨");
 });
 copyScriptBtn.addEventListener("click", () => {
-  navigator.clipboard.writeText(generateFormsScript());
-  alert("Google Forms script copied ✨");
-});
-
-function generateFormsScript() {
-  const q = researchState.questionnaire;
-  let s = `function createForm(){\n  const f = FormApp.create('Survey Form');\n`;
-  q.profile.forEach(p => { s += `  f.addTextItem().setTitle('${escapeQuotes(p)}');\n`; });
-  q.yesno.forEach(y => { s += `  f.addMultipleChoiceItem().setTitle('${escapeQuotes(y)}').setChoiceValues(['Yes','No']);\n`; });
-  q.likert.forEach(l => { s += `  f.addScaleItem().setTitle('${escapeQuotes(l.text)}').setBounds(1,5).setLabels('Strongly disagree','Strongly agree');\n`; });
-  s += `}`;
-  return s;
-}
-function escapeQuotes(str){return str.replace(/'/g,"\\'");}
-
-/*****   INITIAL RENDER (empty) *****/
-renderQuestionnaire();
+  navigator
