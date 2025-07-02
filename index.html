@@ -1,3 +1,6 @@
+git add index.html js/app.js
+git commit -m "Simplify HTML for no-label version"
+git push origin main     # Vercel redeploys automatically
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +17,7 @@
 
 <main>
 
-  <!-- ── 1. Inputs ────────────────────────────────────────── -->
+  <!-- 1. Inputs -->
   <section class="card">
     <h2>Introduction</h2>
     <textarea id="intro-input" placeholder="Paste or write your Introduction…"></textarea>
@@ -28,16 +31,10 @@
     <button id="generate-q-btn" class="primary">Generate Questionnaire</button>
   </section>
 
-  <!-- ── 2. Generated Questionnaire ───────────────────────── -->
+  <!-- 2. Generated Questions (single list) -->
   <section class="card">
-    <h2>Profile Questions</h2>
+    <h2>Questions</h2>
     <ul id="profile-list"></ul>
-
-    <h2>Yes/No Questions</h2>
-    <ul id="yesno-list"></ul>
-
-    <h2>Likert-Scale Items</h2>
-    <div id="constructs-list"></div>
 
     <div class="btn-row">
       <button id="send-draft-btn">Send Draft to Discussion</button>
@@ -45,7 +42,7 @@
     </div>
   </section>
 
-  <!-- ── 3. Discussion (ChatGPT) ──────────────────────────── -->
+  <!-- 3. Discussion (ChatGPT) -->
   <section class="card">
     <h2>Discussion & Comments</h2>
     <textarea id="discussion-log" readonly rows="12"></textarea>
@@ -57,10 +54,10 @@
     </div>
   </section>
 
-  <!-- ── 4. Export Buttons ────────────────────────────────── -->
+  <!-- 4. Export -->
   <section class="card export">
     <button id="copy-json-btn">Copy JSON</button>
-    <button id="copy-script-btn">Copy Google Forms Script</button>
+    <button id="copy-script-btn">Copy Plain Text</button>
   </section>
 
 </main>
