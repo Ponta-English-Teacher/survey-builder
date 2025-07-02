@@ -1,5 +1,3 @@
-# ─ delete whole file, paste canvas content ─
-# Ctrl-O ↵  → Ctrl-X
 // =============================
 //  Survey Builder – FULL app.js  (Syntax fixed, full file)
 //  Updated: 2025‑07‑02  ➜ closes missing braces / restores end of file
