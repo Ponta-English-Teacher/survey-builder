@@ -1,26 +1,31 @@
-kimport fetch from "node-fetch";
+// api/openai.js    ← keep exactly this path
 
 export default async function handler(req, res) {
-  const { messages, model = "gpt-4o", temperature = 0.7 } = req.body;
+  if (req.method !== "POST")
+    return res.status(405).end("Method Not Allowed");
 
-  const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature
-    })
-  });
+  const { messages, temperature = 0.7, model = "gpt-4o" } = req.body;
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return res.status(500).end("Missing OPENAI_API_KEY");
 
-  if (!openaiRes.ok) {
-    return res.status(openaiRes.status).json({ error: await openaiRes.text() });
+  try {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({ model, messages, temperature })
+    });
+
+    if (!r.ok) {
+      const err = await r.text();
+      return res.status(500).end(err);
+    }
+
+    const data = await r.json();
+    res.status(200).json(data);
+  } catch (err) {
+    res.status(500).end(err.message);
   }
-
-  const data = await openaiRes.json();
-  res.status(200).json(data);
 }
-
